@@ -1,0 +1,28 @@
+{
+  "name": "workstation-desktop",
+  "version": "1.1.0",
+  "private": true,
+  "description": "A desktop workspace for shared files, conversation, and single-use invitations.",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "test:large": "node tests/large-transfer.cjs",
+    "test:browser": "node tests/browser.mjs",
+    "test:desktop": "node tests/desktop.mjs",
+    "relay:install": "node scripts/download-relay.mjs",
+    "build": "node scripts/package.mjs",
+    "build:windows": "node scripts/package-windows.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "electron": "^44.5.1"
+  },
+  "dependencies": {
+    "yazl": "^3.3.1"
+  }
+}

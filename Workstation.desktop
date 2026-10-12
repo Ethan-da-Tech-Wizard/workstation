@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Workstation
+Comment=A private shared workspace for files and conversation
+Exec="/home/ethan/pg/workstation/Workstation"
+Icon=/home/ethan/pg/workstation/ui/icon.png
+Terminal=false
+Categories=Office;
+StartupWMClass=workstation-desktop

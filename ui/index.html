@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; font-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Workstation</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div id="loading" class="loading-screen"><img src="./icon.svg" width="48" height="48" alt=""><p>Opening your workspace…</p></div>
+  <main id="join-screen" class="join-screen" hidden>
+    <div class="join-brand"><img src="./icon.svg" alt="" width="36" height="36"><span>workstation<span class="brand-dot">.</span></span></div>
+    <section class="join-card">
+      <div class="eyebrow">A PLACE TO WORK TOGETHER</div>
+      <div class="join-art" aria-hidden="true"><div class="art-sheet sheet-back"></div><div class="art-sheet sheet-front"><span></span><span></span><span></span></div><div class="art-circle">↗</div></div>
+      <h1 id="join-title">Join a workstation.</h1>
+      <p id="join-description">Enter the code your host sent you. This app will connect you to their workspace.</p>
+      <form id="join-form">
+        <label for="join-code">Workstation code</label>
+        <textarea id="join-code" class="code-field" name="code" placeholder="Paste your invitation code here" rows="3" maxlength="512" spellcheck="false" autocapitalize="off" autocomplete="off" required></textarea>
+        <label for="guest-name">What should we call you?</label>
+        <input id="guest-name" name="name" placeholder="Your name" maxlength="60" autocomplete="nickname" required>
+        <button id="join-button" class="button primary" type="submit">Join workstation <span aria-hidden="true">→</span></button>
+      </form>
+      <div id="resume-panel" hidden><button id="resume-session" class="button primary">Reconnect to workstation</button><button id="forget-session" class="button secondary">Enter a different code</button></div>
+      <p id="join-error" class="form-error" role="alert" hidden></p>
+      <div class="join-footnote"><span data-icon="lock"></span><span>One code admits one guest. The host controls access, and shared files stay on their computer.</span></div>
+    </section>
+    <p class="join-bottom">Their workspace. A shared place for your work.</p>
+  </main>
+
+  <div id="app" class="app-shell" hidden>
+    <aside class="sidebar">
+      <a class="brand" href="#files" aria-label="Workstation home"><img src="./icon.svg" width="34" height="34" alt=""><span>workstation<span class="brand-dot">.</span></span></a>
+      <div class="workspace-label">YOUR WORKSPACE</div>
+      <nav class="navigation" aria-label="Workspace views">
+        <button class="nav-item active" data-view="files"><span data-icon="files"></span><span>Shared files</span><span id="nav-file-count" class="nav-count">0</span></button>
+        <button class="nav-item" data-view="activity"><span data-icon="activity"></span><span>Activity</span></button>
+        <button class="nav-item host-only" data-view="invites"><span data-icon="link"></span><span>Invitations</span><span id="nav-invite-count" class="nav-count">0</span></button>
+      </nav>
+
+      <div class="people-label"><span>IN THIS WORKSPACE</span><span id="people-count">1</span></div>
+      <div id="people" class="people-list"></div>
+      <button id="sidebar-invite" class="text-button sidebar-invite host-only"><span data-icon="plus"></span>Invite someone</button>
+
+      <div class="sidebar-bottom">
+        <div class="storage-card host-only">
+          <div class="storage-heading"><span data-icon="computer"></span><strong>Stays on your computer</strong></div>
+          <p>Your files are here to stay.<br>Even after everyone leaves.</p>
+          <div class="storage-meter"><div id="storage-bar"></div></div>
+          <div id="storage-text" class="storage-text">0 B stored</div>
+        </div>
+        <button id="settings-button" class="nav-item host-only"><span data-icon="settings"></span>Workspace settings</button>
+        <button id="leave-button" class="nav-item guest-only"><span data-icon="exit"></span>Leave workspace</button>
+        <div class="sidebar-footer"><span class="mini-dot"></span><span id="sidebar-footer-text">Your computer. Your space.</span><span class="version">v1.0</span></div>
+      </div>
+    </aside>
+
+    <div class="workspace-shell">
+      <header class="topbar">
+        <div class="breadcrumb"><span data-icon="grid"></span><span id="workspace-name">Workstation</span><span class="slash">/</span><strong id="current-view">Shared files</strong></div>
+        <div class="topbar-actions">
+          <span id="connection-badge" class="status-badge"><span class="status-dot"></span><span id="connection-label">Sharing off</span></span>
+          <button id="stop-sharing" class="button danger-quiet host-only" hidden><span data-icon="stop"></span>End session</button>
+          <button id="invite-button" class="button primary host-only"><span data-icon="plus"></span>Invite guest</button>
+          <span id="guest-identity" class="guest-identity guest-only"></span>
+        </div>
+      </header>
+
+      <div id="connection-notice" class="connection-notice" role="status" hidden></div>
+      <div class="workspace-content">
+        <section class="files-panel">
+          <div class="page-heading">
+            <div><div class="eyebrow" id="page-eyebrow">GOOD WORK STARTS HERE</div><h1 id="page-title">A little space. A lot of possibility.</h1><p id="page-description">Bring your files and your people. Make something together.</p></div>
+            <div class="heading-mark" aria-hidden="true">✳</div>
+          </div>
+
+          <section id="files-view" class="view-panel">
+            <div class="section-toolbar">
+              <div class="section-title"><h2>Shared files</h2><span id="file-count" class="count-chip">0</span></div>
+              <div class="file-tools"><label class="search-field"><span data-icon="search"></span><input id="file-search" type="search" placeholder="Find a file…" aria-label="Search files"></label><button id="folder-button" class="button secondary"><span data-icon="folder"></span>Add folder</button><button id="upload-button" class="button primary"><span data-icon="upload"></span>Add files</button></div>
+            </div>
+            <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Add files, or drag and drop files and folders here"><span class="drop-icon" data-icon="upload"></span><div><strong>Drop files or folders here</strong><span>Folders are shared as ZIP files</span></div><span id="upload-limit" class="drop-limit">Up to 1 TB each · disk space permitting</span></div>
+            <div id="upload-progress" class="upload-progress" role="status" hidden><span class="spinner"></span><div class="transfer-copy"><span id="upload-label">Adding files…</span><span id="upload-detail"></span></div><progress id="upload-meter" aria-label="Transfer progress" max="100" value="0"></progress><button id="cancel-transfer" class="text-button" hidden>Cancel</button></div>
+            <div id="transfer-error" class="transfer-error" role="alert" hidden></div>
+            <div class="file-table-wrap">
+              <table id="file-table" class="file-table" hidden><thead><tr><th scope="col">NAME</th><th scope="col">SIZE</th><th scope="col">ADDED</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody id="file-list"></tbody></table>
+              <div id="empty-files" class="empty-files"><div class="empty-file-art" aria-hidden="true"><span data-icon="folder"></span><span class="empty-art-plus">+</span></div><h3>A fresh start, all yours.</h3><p>Add the first file to your shared workspace.<br>Everyone here can download a copy.</p><button id="empty-upload" class="button secondary"><span data-icon="plus"></span>Add your first file</button></div>
+              <div id="no-results" class="no-results" hidden><span data-icon="search"></span><h3>No files found</h3><p>Try a different name or clear your search.</p></div>
+            </div>
+            <div class="files-footnote"><span data-icon="lock"></span><span id="files-footnote-text">Only invited guests can access these files. You’re always in control.</span><button id="open-folder" class="text-button host-only">Open files folder <span data-icon="arrow-up-right"></span></button></div>
+          </section>
+
+          <section id="activity-view" class="view-panel" hidden><div class="section-toolbar"><div class="section-title"><h2>Recent activity</h2></div><span class="muted">The latest from your workspace</span></div><div id="activity-list" class="activity-list"></div></section>
+          <section id="invites-view" class="view-panel" hidden><div class="section-toolbar"><div class="section-title"><h2>Invitations</h2></div><button id="new-invite" class="button primary"><span data-icon="plus"></span>Create invitation</button></div><p class="view-description">One code, one guest. Unused codes expire after 30 minutes.</p><div id="invite-list" class="invite-list"></div></section>
+
+          <div class="workspace-bottom-note"><span class="mini-line"></span>A place for the work, and the people behind it.</div>
+        </section>
+
+        <aside class="conversation-panel">
+          <section class="chat-card">
+            <div class="chat-heading"><div class="chat-title"><span data-icon="chat"></span><h2>Conversation</h2></div><span class="chat-live-dot" title="Workspace conversation"></span></div>
+            <div class="chat-intro"><span class="tiny-label">A LITTLE ROOM TO TALK</span><p>Ideas, updates, and everything in between.</p></div>
+            <div id="messages" class="messages" role="log" aria-label="Workspace conversation" aria-live="polite"></div>
+            <form id="chat-form" class="chat-form"><label for="message-input" class="sr-only">Your message</label><textarea id="message-input" placeholder="Say something…" rows="2" maxlength="4000"></textarea><div class="chat-composer-footer"><span>Enter to send · Shift + Enter for a new line</span><button id="send-message" type="submit" class="send-button" aria-label="Send message"><span data-icon="arrow-up"></span></button></div></form>
+          </section>
+          <div class="workspace-tip"><span data-icon="sparkles"></span><div><strong id="tip-title">Come and go. Files stay.</strong><p id="tip-text">Everything you add is saved in this workspace, ready whenever you need it.</p></div></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="invite-dialog" class="modal">
+    <div class="modal-top"><span class="modal-icon" data-icon="link"></span><button class="icon-button modal-close" aria-label="Close invitation" data-close="invite-dialog"><span data-icon="x"></span></button></div>
+    <div class="eyebrow">MAKE ROOM FOR SOMEONE</div><h2>One code. One guest.</h2><p>Their desktop app connects to your workspace.</p>
+    <div class="guest-download"><div><strong>1. Send them the Windows app</strong><p>They extract the download and open Workstation.exe.</p></div><button id="save-guest-app" class="button secondary"><span data-icon="download"></span>Save Windows app</button></div>
+    <div id="invite-connecting" class="invite-connecting"><span class="spinner"></span><span>Preparing your code. This can take a minute…</span></div>
+    <div id="invite-ready" hidden><label for="invite-code">2. Send this single-use workstation code</label><div class="invite-url-row"><textarea id="invite-code" class="code-field" rows="3" readonly spellcheck="false"></textarea><button id="copy-invite" class="button primary"><span data-icon="copy"></span>Copy code</button></div><div class="invite-rules"><div><span data-icon="check"></span>First person to enter the code gets access</div><div><span data-icon="clock"></span><span id="invite-expiry">Expires in 30 minutes if unused</span></div><div><span data-icon="shield"></span>Remove your guest any time from the sidebar</div></div><p class="modal-note">They paste the code into their app’s “Join a workstation” screen. Keep your app open while you work together.</p></div>
+    <p id="invite-error" class="form-error" role="alert" hidden></p>
+    <button id="retry-invite" class="button primary" hidden>Try again</button>
+  </dialog>
+
+  <dialog id="settings-dialog" class="modal">
+    <div class="modal-top"><span class="modal-icon" data-icon="settings"></span><button class="icon-button modal-close" aria-label="Close settings" data-close="settings-dialog"><span data-icon="x"></span></button></div>
+    <h2>Make yourself at home.</h2><p>A few details for your workspace.</p>
+    <form id="settings-form"><label for="setting-name">Workspace name</label><input id="setting-name" maxlength="60" required><label for="setting-host">Your display name</label><input id="setting-host" maxlength="60" required><label>Files are saved here</label><code id="setting-storage" class="storage-path"></code><p class="modal-note">Closing the app ends guest access. Your files and conversation are saved for next time. Removed files are kept in the workspace’s .trash folder.</p><button class="button primary" type="submit">Save changes</button></form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="modal confirm-modal"><h2 id="confirm-title"></h2><p id="confirm-description"></p><div class="confirm-actions"><button id="confirm-cancel" class="button secondary">Cancel</button><button id="confirm-yes" class="button danger">Remove file</button></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

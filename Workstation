@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+WORKSTATION_APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export WORKSTATION_DATA_DIR="${WORKSTATION_DATA_DIR:-$WORKSTATION_APP_DIR/workspace-data}"
+unset ELECTRON_RUN_AS_NODE
+if [ -x "$WORKSTATION_APP_DIR/dist/Workstation/Workstation" ]; then
+  exec "$WORKSTATION_APP_DIR/dist/Workstation/Workstation" "$@"
+fi
+if [ ! -x "$WORKSTATION_APP_DIR/node_modules/electron/dist/electron" ]; then
+  printf '%s\n' 'Workstation needs setup. Run: npm install && npx install-electron && npm run relay:install'
+  exit 1
+fi
+exec "$WORKSTATION_APP_DIR/node_modules/electron/dist/electron" "$WORKSTATION_APP_DIR" "$@"

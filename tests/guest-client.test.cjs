@@ -1,0 +1,86 @@
+'use strict';
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const crypto = require('node:crypto');
+const { encodeInviteCode, decodeInviteCode, validOrigin } = require('../src/invite-code.cjs');
+const { GuestClient } = require('../src/guest-client.cjs');
+const { Workspace, CHUNK_SIZE } = require('../src/workspace.cjs');
+const { startGuestServer } = require('../src/guest-server.cjs');
+
+test('invitation codes are opaque, pasteable, checksum protected, and confined to known relay origins', () => {
+  const origin = 'https://sample-desktop-workspace-join.trycloudflare.com';
+  const token = crypto.randomBytes(32).toString('base64url');
+  const code = encodeInviteCode(origin, token);
+  assert.ok(code.startsWith('WS1-'));
+  assert.ok(!code.includes('http') && !code.includes('.com'));
+  assert.deepEqual(decodeInviteCode(code), { origin, token });
+  assert.deepEqual(decodeInviteCode('  ' + code.slice(0, 40) + '\n' + code.slice(40) + '  '), { origin, token });
+  assert.throws(() => decodeInviteCode(code.slice(0, 20) + (code[20] === 'a' ? 'b' : 'a') + code.slice(21)), { status: 400 });
+  assert.throws(() => decodeInviteCode(origin + '/join#' + token), { status: 400 });
+  for (const bad of ['http://example.com', 'https://127.0.0.1', 'https://evil.trycloudflare.com.evil.test', 'https://test.trycloudflare.com:1234', 'https://test.trycloudflare.com/path']) assert.equal(validOrigin(bad), false);
+  const local = encodeInviteCode('http://127.0.0.1:12345', token, { allowLocal: true });
+  assert.throws(() => decodeInviteCode(local), { status: 400 });
+});
+
+test('native clients join by code, upload multiple chunks, save verified copies, chat, resume and are removed', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workstation-native-'));
+  const workspace = new Workspace(path.join(root, 'host'), { allowLocalCodes: true });
+  const server = await startGuestServer(workspace);
+  workspace.setSharing('online', server.localUrl);
+  const guest = new GuestClient({ allowLocal: true });
+  const other = new GuestClient({ allowLocal: true });
+  t.after(async () => { guest.clear(); other.clear(); workspace.close(); await server.close(); fs.rmSync(root, { recursive: true, force: true }); });
+  const invitation = workspace.createInvite();
+  const joined = await guest.join(invitation.code, 'Windows guest');
+  assert.equal(joined.self.name, 'Windows guest');
+  await assert.rejects(() => other.join(invitation.code, 'Second guest'), { status: 410 });
+  const payload = crypto.randomBytes(CHUNK_SIZE + 971);
+  const input = path.join(root, 'Design data.bin');
+  fs.writeFileSync(input, payload);
+  const uploaded = await guest.uploadFile(input);
+  const output = path.join(root, 'saved.bin');
+  fs.writeFileSync(output, 'Old copy to be replaced only after verification');
+  await guest.download(uploaded.id, output);
+  assert.deepEqual(fs.readFileSync(output), payload);
+  assert.deepEqual(fs.readFileSync(workspace.resolveFile(uploaded.id).location), payload);
+  await guest.message('Hello from my desktop app.');
+  assert.equal(workspace.snapshot().messages.at(-1).text, 'Hello from my desktop app.');
+  workspace.chat(null, 'Hello from the host.');
+  assert.equal((await guest.state()).messages.at(-1).text, 'Hello from the host.');
+  const savedCredentials = { ...guest.session };
+  assert.equal(other.restore(savedCredentials), true);
+  assert.equal((await other.state()).self.id, joined.self.id);
+  assert.equal(other.restore({ origin: 'https://evil.test', secret: savedCredentials.secret }), false);
+  workspace.revoke(joined.self.id);
+  await assert.rejects(() => guest.state(), { status: 401 });
+  assert.equal(guest.session, null);
+  await assert.rejects(() => other.download(uploaded.id, path.join(root, 'blocked.bin')), { status: 401 });
+  assert.equal(fs.existsSync(path.join(root, 'blocked.bin')), false);
+  assert.deepEqual(fs.readFileSync(workspace.resolveFile(uploaded.id).location), payload);
+  const secondInvite = workspace.createInvite();
+  await guest.join(secondInvite.code, 'Returning guest');
+  await guest.leave();
+  assert.equal(guest.session, null);
+  assert.equal(workspace.snapshot().participants.length, 0);
+});
+
+test('a corrupt download leaves the existing user file untouched and removes the partial file', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workstation-integrity-'));
+  const workspace = new Workspace(path.join(root, 'host'), { allowLocalCodes: true });
+  const server = await startGuestServer(workspace);
+  workspace.setSharing('online', server.localUrl);
+  const guest = new GuestClient({ allowLocal: true });
+  t.after(async () => { guest.clear(); workspace.close(); await server.close(); fs.rmSync(root, { recursive: true, force: true }); });
+  await guest.join(workspace.createInvite().code, 'Guest');
+  const original = path.join(root, 'original.txt'); fs.writeFileSync(original, 'original');
+  const file = await workspace.importFile(original);
+  fs.writeFileSync(workspace.resolveFile(file.id).location, 'modified');
+  const target = path.join(root, 'my-existing-copy.txt'); fs.writeFileSync(target, 'Keep my copy');
+  await assert.rejects(() => guest.download(file.id, target), /integrity/);
+  assert.equal(fs.readFileSync(target, 'utf8'), 'Keep my copy');
+  assert.equal(fs.readdirSync(root).some(name => name.endsWith('.part')), false);
+});
